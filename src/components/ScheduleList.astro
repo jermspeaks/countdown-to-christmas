@@ -83,6 +83,15 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
       if (countLabel) countLabel.textContent = `${count} ${count === 1 ? "title" : "titles"}`;
     };
     updateList();
+    const refreshAtMidnight = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      window.setTimeout(() => {
+        updateList();
+        refreshAtMidnight();
+      }, nextMidnight.getTime() - now.getTime());
+    };
+    refreshAtMidnight();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") updateList();
     });
