@@ -1,5 +1,6 @@
 ---
 import { groupScheduleByDate, schedule } from "../data/schedule";
+import { getScheduleDetails } from "../data/details";
 
 interface Props {
   mode: "upcoming" | "recent";
@@ -40,15 +41,27 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
           </div>
         </header>
         <ul class="event-list">
-          {events.map((item) => (
-            <li class="event-item">
-              <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
-              <div>
-                <p class="event-title">{item.title}</p>
-                {item.notes && <span class="event-note">{item.notes}</span>}
-              </div>
-            </li>
-          ))}
+          {events.map((item) => {
+            const details = getScheduleDetails(item.id);
+            return (
+              <li class="event-item">
+                <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
+                <div class="event-content">
+                  <p class="event-title">
+                    <a href={details.url} target="_blank" rel="noopener noreferrer">
+                      {item.title}<span class="external-link-icon" aria-hidden="true"> ↗</span>
+                    </a>
+                  </p>
+                  {item.notes && <span class="event-note">{item.notes}</span>}
+                  <div class="event-details">
+                    <p class="event-premiere"><span>Premiere</span> {details.premiereDate}</p>
+                    <p class="event-starring"><span>{details.castLabel}</span> {details.starring}</p>
+                    <p class="event-synopsis">{details.synopsis}</p>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
     );
