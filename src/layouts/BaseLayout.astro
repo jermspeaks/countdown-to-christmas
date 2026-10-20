@@ -227,6 +227,7 @@ const navigation = [
   .event-item { display: flex; align-items: flex-start; gap: 15px; padding: 17px 19px; }
   .event-item + .event-item { border-top: 1px dashed var(--dash-border); }
   .event-time { flex: 0 0 48px; padding-top: 3px; color: var(--red); font-family: var(--font-bold); font-size: 11px; font-weight: 750; }
+  .event-poster { flex: 0 0 112px; width: 112px; aspect-ratio: 4 / 3; height: auto; border-radius: 5px; object-fit: cover; }
   .event-content { flex: 1; min-width: 0; }
   .event-title { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 18px; font-weight: 400; line-height: 1.25; }
   .event-title a { color: inherit; text-decoration-color: transparent; text-underline-offset: 3px; transition: color .15s ease, text-decoration-color .15s ease; }
@@ -305,6 +306,7 @@ const navigation = [
     .day-heading { padding: 12px 13px; }
     .event-item { gap: 11px; padding: 15px 13px; }
     .event-time { flex-basis: 43px; }
+    .event-poster { flex-basis: 76px; width: 76px; }
     .event-title { font-size: 17px; }
     .event-details { margin-top: 9px; }
     .event-details p { font-size: 11px; }

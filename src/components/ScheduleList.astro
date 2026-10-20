@@ -1,6 +1,7 @@
 ---
 import { groupScheduleByDate, schedule } from "../data/schedule";
 import { getScheduleDetails } from "../data/details";
+import { getSchedulePoster } from "../data/posters";
 
 interface Props {
   mode: "upcoming" | "recent";
@@ -43,9 +44,11 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
         <ul class="event-list">
           {events.map((item) => {
             const details = getScheduleDetails(item.id);
+            const poster = getSchedulePoster(item.title);
             return (
               <li class="event-item">
                 <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
+                {poster && <img class="event-poster" src={poster.path} alt={`${item.title} poster`} loading="lazy" decoding="async" width="112" height="84" />}
                 <div class="event-content">
                   <p class="event-title">
                     <a href={details.url} target="_blank" rel="noopener noreferrer">
