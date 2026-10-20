@@ -1,0 +1,240 @@
+---
+import { schedule } from "../data/schedule";
+
+const firstMonth = "2026-10";
+const lastMonth = "2026-12";
+const todayDate = new Date();
+const todayKey = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+const actualMonth = `${todayKey.slice(0, 7)}`;
+const currentMonth = actualMonth < firstMonth ? firstMonth : actualMonth > lastMonth ? lastMonth : actualMonth;
+const initialSelection = schedule.find((item) => item.date >= todayKey)?.date ?? schedule[schedule.length - 1].date;
+const monthDate = new Date(`${currentMonth}-01T12:00:00Z`);
+const year = monthDate.getUTCFullYear();
+const month = monthDate.getUTCMonth();
+const dayCount = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+const offset = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+const calendarCells = Array.from({ length: Math.ceil((offset + dayCount) / 7) * 7 }, (_, index) => {
+  const day = index - offset + 1;
+  return day < 1 || day > dayCount ? null : `${currentMonth}-${String(day).padStart(2, "0")}`;
+});
+const grouped = new Map<string, typeof schedule>();
+for (const item of schedule) grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
+const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+const initialEvents = grouped.get(initialSelection) ?? [];
+---
+
+<div class="page-intro">
+  <div>
+    <p class="section-kicker">A season at a glance</p>
+    <h2 class="section-title">The holiday calendar</h2>
+    <p class="section-copy">Pick a date to see what's premiering. Every little red dot means a new story.</p>
+  </div>
+  <span class="event-count">October — December 2026</span>
+</div>
+
+<section
+  class="calendar-panel"
+  data-calendar
+  data-current-month={currentMonth}
+  data-selected-date={initialSelection}
+  data-first-month={firstMonth}
+  data-last-month={lastMonth}
+  aria-label="Countdown to Christmas schedule calendar"
+>
+  <div class="calendar-toolbar">
+    <h3 data-month-label>{formatDate(`${currentMonth}-01`, { month: "long", year: "numeric" })}</h3>
+    <div class="month-controls">
+      <button class="month-button" type="button" data-previous-month aria-label="Previous month" disabled={currentMonth <= firstMonth}>‹</button>
+      <button class="month-button" type="button" data-next-month aria-label="Next month" disabled={currentMonth >= lastMonth}>›</button>
+    </div>
+  </div>
+
+  <div class="calendar-scroll">
+    <table class="calendar-table" aria-label="Schedule dates">
+      <thead>
+        <tr>
+          { ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <th scope="col">{day}</th>) }
+        </tr>
+      </thead>
+      <tbody data-calendar-body>
+        {Array.from({ length: calendarCells.length / 7 }, (_, week) => (
+          <tr>
+            {calendarCells.slice(week * 7, week * 7 + 7).map((date) => {
+              if (!date) return <td aria-hidden="true"></td>;
+              const dayEvents = grouped.get(date) ?? [];
+              const selected = date === initialSelection;
+              const isPast = date < todayKey;
+              const dayNumber = Number(date.slice(-2));
+              const label = formatDate(date, { weekday: "long", month: "long", day: "numeric" });
+              const eventLabel = dayEvents.length ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "broadcast" : "broadcasts"}` : ", no broadcasts";
+              return (
+                <td>
+                  <button class:list={["calendar-day", { selected, today: date === todayKey }]} type="button" data-calendar-date={date} aria-label={`${label}${eventLabel}${isPast ? ", aired" : ", upcoming"}`} aria-pressed={selected}>
+                    <span class="day-number">{dayNumber}</span>
+                    <span class="calendar-mark" aria-hidden="true">{dayEvents.map(() => <i></i>)}</span>
+                  </button>
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="calendar-legend" aria-label="Calendar legend">
+    <span class="legend-item"><i class="legend-dot"></i> Scheduled broadcast</span>
+    <span class="legend-item"><i class="legend-dot past"></i> Past date</span>
+  </div>
+
+  <section class="date-details" aria-live="polite" aria-atomic="true">
+    <h4 data-selected-label>{formatDate(initialSelection, { weekday: "long", month: "long", day: "numeric" })}</h4>
+    <div class="calendar-events" data-calendar-events>
+      {initialEvents.length ? initialEvents.map((item) => (
+        <article class="calendar-event">
+          <time datetime={item.date}>{item.timeLabel}</time>
+          <p>{item.title}{item.notes && <small>{item.notes}</small>}{item.featureGroup && <small>Double feature</small>}</p>
+        </article>
+      )) : <p class="calendar-empty">No new broadcasts scheduled for this date. Pick another day to explore the season.</p>}
+    </div>
+  </section>
+  <p class="calendar-range-note">The calendar follows the published 2026 schedule. Air times are shown in the original broadcast notation, not converted to your local time.</p>
+  <script type="application/json" data-schedule-json set:html={JSON.stringify(schedule).replace(/</g, "\\u003c")} />
+</section>
+
+<script>
+  type CalendarEvent = { id: string; date: string; title: string; timeLabel: string; notes?: string; featureGroup?: string };
+  const calendar = document.querySelector<HTMLElement>("[data-calendar]");
+  if (calendar) {
+    const events = JSON.parse(calendar.querySelector("[data-schedule-json]")?.textContent ?? "[]") as CalendarEvent[];
+    const grouped = new Map<string, CalendarEvent[]>();
+    for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
+
+    const currentMonthKey = () => calendar.dataset.currentMonth ?? "2026-10";
+    const selectedDateKey = () => calendar.dataset.selectedDate ?? "";
+    const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en-US", options).format(new Date(`${date}T12:00:00`));
+    const localToday = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    };
+    const createDayButton = (date: string, today: string) => {
+      const dayEvents = grouped.get(date) ?? [];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "calendar-day";
+      const selected = date === selectedDateKey();
+      const isPast = date < today;
+      if (selected) button.classList.add("selected");
+      if (date === today) button.classList.add("today");
+      button.setAttribute("aria-pressed", String(selected));
+      button.setAttribute("aria-label", `${formatDate(date, { weekday: "long", month: "long", day: "numeric" })}, ${dayEvents.length ? `${dayEvents.length} ${dayEvents.length === 1 ? "broadcast" : "broadcasts"}` : "no broadcasts"}, ${isPast ? "aired" : "upcoming"}`);
+      button.dataset.calendarDate = date;
+      const number = document.createElement("span");
+      number.className = "day-number";
+      number.textContent = String(Number(date.slice(-2)));
+      button.append(number);
+      const mark = document.createElement("span");
+      mark.className = "calendar-mark";
+      mark.setAttribute("aria-hidden", "true");
+      for (const _event of dayEvents) {
+        const dot = document.createElement("i");
+        mark.append(dot);
+      }
+      button.append(mark);
+      return button;
+    };
+    const renderMonth = () => {
+      const month = currentMonthKey();
+      const [year, monthNumber] = month.split("-").map(Number);
+      const firstDay = new Date(year, monthNumber - 1, 1);
+      const daysInMonth = new Date(year, monthNumber, 0).getDate();
+      const offset = (firstDay.getDay() + 6) % 7;
+      const rows = Math.ceil((offset + daysInMonth) / 7);
+      const body = calendar.querySelector<HTMLElement>("[data-calendar-body]");
+      if (!body) return;
+      body.replaceChildren();
+      const today = localToday();
+      for (let week = 0; week < rows; week++) {
+        const row = document.createElement("tr");
+        for (let weekday = 0; weekday < 7; weekday++) {
+          const day = week * 7 + weekday - offset + 1;
+          const cell = document.createElement("td");
+          if (day < 1 || day > daysInMonth) {
+            cell.setAttribute("aria-hidden", "true");
+          } else {
+            const date = `${month}-${String(day).padStart(2, "0")}`;
+            cell.append(createDayButton(date, today));
+          }
+          row.append(cell);
+        }
+        body.append(row);
+      }
+      const heading = calendar.querySelector<HTMLElement>("[data-month-label]");
+      if (heading) heading.textContent = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T12:00:00Z`));
+      const previous = calendar.querySelector<HTMLButtonElement>("[data-previous-month]");
+      const next = calendar.querySelector<HTMLButtonElement>("[data-next-month]");
+      if (previous) previous.disabled = month <= (calendar.dataset.firstMonth ?? "2026-10");
+      if (next) next.disabled = month >= (calendar.dataset.lastMonth ?? "2026-12");
+      renderSelectedDate();
+    };
+    const renderSelectedDate = () => {
+      const selected = selectedDateKey();
+      const label = calendar.querySelector<HTMLElement>("[data-selected-label]");
+      const list = calendar.querySelector<HTMLElement>("[data-calendar-events]");
+      if (!label || !list || !selected) return;
+      label.textContent = formatDate(selected, { weekday: "long", month: "long", day: "numeric" });
+      list.replaceChildren();
+      const dayEvents = grouped.get(selected) ?? [];
+      if (!dayEvents.length) {
+        const empty = document.createElement("p");
+        empty.className = "calendar-empty";
+        empty.textContent = "No new broadcasts scheduled for this date. Pick another day to explore the season.";
+        list.append(empty);
+        return;
+      }
+      for (const event of dayEvents) {
+        const article = document.createElement("article");
+        article.className = "calendar-event";
+        const time = document.createElement("time");
+        time.dateTime = event.date;
+        time.textContent = event.timeLabel;
+        const title = document.createElement("p");
+        title.append(document.createTextNode(event.title));
+        if (event.notes) {
+          const note = document.createElement("small");
+          note.textContent = event.notes;
+          title.append(note);
+        }
+        if (event.featureGroup) {
+          const feature = document.createElement("small");
+          feature.textContent = "Double feature";
+          title.append(feature);
+        }
+        article.append(time, title);
+        list.append(article);
+      }
+    };
+
+    calendar.addEventListener("click", (clickEvent) => {
+      const target = clickEvent.target;
+      if (!(target instanceof Element)) return;
+      const dayButton = target.closest<HTMLButtonElement>("[data-calendar-date]");
+      if (dayButton?.dataset.calendarDate) {
+        calendar.dataset.selectedDate = dayButton.dataset.calendarDate;
+        renderMonth();
+        return;
+      }
+      const monthButton = target.closest<HTMLButtonElement>("[data-previous-month], [data-next-month]");
+      if (!monthButton) return;
+      const [year, month] = currentMonthKey().split("-").map(Number);
+      const direction = monthButton.hasAttribute("data-next-month") ? 1 : -1;
+      const nextMonth = new Date(Date.UTC(year, month - 1 + direction, 1));
+      calendar.dataset.currentMonth = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}`;
+      renderMonth();
+    });
+
+    renderMonth();
+  }
+</script>

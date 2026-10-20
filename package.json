@@ -1,5 +1,5 @@
 {
-  "name": "civil-centauri",
+  "name": "countdown-to-christmas",
   "type": "module",
   "version": "0.0.1",
   "engines": {
@@ -7,11 +7,16 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "check": "astro check",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
     "astro": "^7.4.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.11",
+    "typescript": "^6.0.3"
   }
 }

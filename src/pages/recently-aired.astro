@@ -1,0 +1,12 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ScheduleList from "../components/ScheduleList.astro";
+---
+
+<BaseLayout
+  title="Recently aired"
+  description="Catch up on the newest movies and episodes from Hallmark Channel's Countdown to Christmas 2026 season."
+  activeView="recent"
+>
+  <ScheduleList mode="recent" />
+</BaseLayout>

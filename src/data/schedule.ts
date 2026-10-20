@@ -87,3 +87,7 @@ export function isValidSchedule(events: ScheduleEvent[] = schedule) {
   }
   return ids.size === 41;
 }
+
+if (!isValidSchedule(schedule)) {
+  throw new Error("The holiday schedule must contain 41 unique, valid, chronologically ordered 2026 events.");
+}

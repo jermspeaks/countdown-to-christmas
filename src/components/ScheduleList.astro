@@ -1,0 +1,90 @@
+---
+import { groupScheduleByDate, schedule } from "../data/schedule";
+
+interface Props {
+  mode: "upcoming" | "recent";
+}
+
+const { mode } = Astro.props;
+const today = new Date().toISOString().slice(0, 10);
+const groups = [...groupScheduleByDate().entries()]
+  .sort(([left], [right]) => mode === "recent" ? right.localeCompare(left) : left.localeCompare(right));
+const visibleCount = schedule.filter((item) => mode === "recent" ? item.date < today : item.date >= today).length;
+const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+---
+
+<div class="page-intro">
+  <div>
+    <p class="section-kicker">{mode === "upcoming" ? "Save the date" : "Previously on"}</p>
+    <h2 class="section-title">{mode === "upcoming" ? "Coming up next" : "Recently aired"}</h2>
+    <p class="section-copy">
+      {mode === "upcoming"
+        ? "All the new holiday premieres and episodes still to come."
+        : "A look back at the season's newest holiday stories."}
+    </p>
+  </div>
+  <span class="event-count" data-event-count>{visibleCount} {visibleCount === 1 ? "title" : "titles"}</span>
+</div>
+
+<div class="schedule-groups" data-schedule-list data-list-mode={mode}>
+  {groups.map(([date, events]) => {
+    const shouldShow = mode === "recent" ? date < today : date >= today;
+    const isDouble = events.length > 1;
+    return (
+      <section class="schedule-day" data-event-date={date} hidden={!shouldShow} aria-label={formatDate(date, { weekday: "long", month: "long", day: "numeric" })}>
+        <header class="day-heading">
+          <h3>{formatDate(date, { weekday: "long", month: "long", day: "numeric" })}</h3>
+          <div>
+            {isDouble && <span class="double-badge">Double feature</span>}
+          </div>
+        </header>
+        <ul class="event-list">
+          {events.map((item) => (
+            <li class="event-item">
+              <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
+              <div>
+                <p class="event-title">{item.title}</p>
+                {item.notes && <span class="event-note">{item.notes}</span>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  })}
+</div>
+<p class="empty-state" data-empty-state hidden>
+  {mode === "upcoming" ? "The season's schedule is all wrapped up. Check back next year!" : "Nothing has aired yet. The holiday fun starts soon!"}
+</p>
+<p class="date-note">Upcoming and recently aired are separated by broadcast date. Listed times retain Hallmark's original ET/PT notation.</p>
+
+<script>
+  const list = document.querySelector<HTMLElement>("[data-schedule-list]");
+  if (list) {
+    const mode = list.dataset.listMode;
+    const getLocalDate = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    };
+    const updateList = () => {
+      const today = getLocalDate();
+      const groups = [...list.querySelectorAll<HTMLElement>("[data-event-date]")];
+      let count = 0;
+      for (const group of groups) {
+        const date = group.dataset.eventDate ?? "";
+        const visible = mode === "recent" ? date < today : date >= today;
+        group.hidden = !visible;
+        if (visible) count += group.querySelectorAll(".event-item").length;
+      }
+      const emptyState = document.querySelector<HTMLElement>("[data-empty-state]");
+      if (emptyState) emptyState.hidden = count > 0;
+      const countLabel = document.querySelector<HTMLElement>("[data-event-count]");
+      if (countLabel) countLabel.textContent = `${count} ${count === 1 ? "title" : "titles"}`;
+    };
+    updateList();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") updateList();
+    });
+  }
+</script>
