@@ -7,6 +7,7 @@ A small, responsive Astro app for browsing Hallmark Channel's 2026 Countdown to 
 - `/` — upcoming broadcasts
 - `/recently-aired` — past broadcasts, newest date first
 - `/calendar` — October–December 2026 calendar with selectable dates and full lineups
+- `/bingo` — seeded Hallmark trope bingo cards saved in your browser
 
 ## Run locally
 

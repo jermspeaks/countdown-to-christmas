@@ -1,0 +1,316 @@
+---
+---
+
+<section class="bingo-page" aria-labelledby="bingo-title">
+  <div class="page-intro bingo-intro">
+    <div>
+      <p class="section-kicker">A very merry movie game</p>
+      <h2 class="section-title" id="bingo-title">Hallmark Bingo</h2>
+      <p class="section-copy">Spot the small-town magic, mark a square, and see how quickly the holiday tropes line up.</p>
+    </div>
+    <div class="bingo-actions" aria-label="Bingo card actions">
+      <button class="bingo-button bingo-button-primary" type="button" data-new-card>
+        <span aria-hidden="true">✦</span> New card
+      </button>
+      <button class="bingo-button bingo-button-secondary" type="button" data-reset-card>
+        Reset marks
+      </button>
+    </div>
+  </div>
+
+  <div class="bingo-card" data-bingo-card>
+    <div class="bingo-card-heading">
+      <div>
+        <p class="bingo-card-kicker">Countdown to Christmas</p>
+        <h3>Holiday Movie Bingo</h3>
+      </div>
+      <span class="bingo-seed" data-seed-label aria-label="Card seed"></span>
+    </div>
+
+    <div class="bingo-letters" aria-hidden="true">
+      {Array.from("BINGO").map((letter) => <span>{letter}</span>)}
+    </div>
+    <div class="bingo-grid" role="group" aria-label="Hallmark Christmas trope bingo card" data-bingo-grid>
+      <svg class="bingo-lines" viewBox="0 0 5 5" preserveAspectRatio="none" aria-hidden="true" data-bingo-lines></svg>
+      {Array.from({ length: 25 }, (_, index) => (
+        <button
+          class="bingo-cell"
+          type="button"
+          data-cell-index={index}
+          aria-pressed={index === 12 ? "true" : "false"}
+          aria-label={index === 12 ? "Free space, already marked" : "Bingo square"}
+          disabled={index === 12}
+        >
+          <span class="bingo-cell-text" data-cell-text></span>
+          <span class="bingo-x" aria-hidden="true">×</span>
+        </button>
+      ))}
+    </div>
+    <div class="bingo-card-footer">
+      <span><i class="bingo-dot" aria-hidden="true"></i> Click a square when you spot it</span>
+      <span data-progress>0 / 24 marked</span>
+    </div>
+  </div>
+
+  <p class="bingo-status" aria-live="polite" data-bingo-status>Let the holiday movie magic begin.</p>
+  <p class="bingo-note">Your card and marked squares are saved on this device. Each new card uses a seeded shuffle so its layout can be reproduced.</p>
+  <div class="confetti" aria-hidden="true" data-confetti></div>
+</section>
+
+<script>
+  import { bingoTropes } from "../data/bingo";
+
+  type BingoState = {
+    seed: number;
+    tiles: string[];
+    marked: boolean[];
+  };
+
+  type CompletedLine = {
+    cells: number[];
+  };
+
+  const storageKey = "countdown-bingo-card-v1";
+  const freeSpaceIndex = 12;
+
+  const grid = document.querySelector<HTMLElement>("[data-bingo-grid]");
+  const seedLabel = document.querySelector<HTMLElement>("[data-seed-label]");
+  const progress = document.querySelector<HTMLElement>("[data-progress]");
+  const status = document.querySelector<HTMLElement>("[data-bingo-status]");
+  const lineLayer = document.querySelector<SVGSVGElement>("[data-bingo-lines]");
+  const confettiContainer = document.querySelector<HTMLElement>("[data-confetti]");
+
+  function seededRandom(seed: number): () => number {
+    let state = seed >>> 0;
+    return () => {
+      state += 0x6d2b79f5;
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function createCard(seed: number): BingoState {
+    const random = seededRandom(seed);
+    const shuffled = [...bingoTropes];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+
+    const tropes: string[] = shuffled.slice(0, 24);
+    tropes.splice(freeSpaceIndex, 0, "FREE SPACE");
+    const marked = Array.from({ length: 25 }, () => false);
+    marked[freeSpaceIndex] = true;
+    return { seed, tiles: tropes, marked };
+  }
+
+  function createSeed(): number {
+    const values = new Uint32Array(1);
+    if (globalThis.crypto?.getRandomValues) {
+      globalThis.crypto.getRandomValues(values);
+      return values[0];
+    }
+    return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+  }
+
+  function isValidState(value: unknown): value is BingoState {
+    if (typeof value !== "object" || value === null) return false;
+    const candidate = value as Partial<BingoState>;
+    return Number.isInteger(candidate.seed)
+      && Array.isArray(candidate.tiles)
+      && candidate.tiles.length === 25
+      && candidate.tiles.every((tile) => typeof tile === "string")
+      && candidate.tiles[freeSpaceIndex] === "FREE SPACE"
+      && Array.isArray(candidate.marked)
+      && candidate.marked.length === 25
+      && candidate.marked.every((marked) => typeof marked === "boolean")
+      && candidate.marked[freeSpaceIndex] === true;
+  }
+
+  function loadCard(): BingoState {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (isValidState(parsed)) return parsed;
+      }
+    } catch {
+      // Keep the card usable for this visit when storage is unavailable or invalid.
+    }
+    return createCard(createSeed());
+  }
+
+  let game = loadCard();
+
+  function saveCard(): void {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(game));
+    } catch {
+      // State remains available until the page is closed if storage is unavailable.
+    }
+  }
+
+  function getCompletedLines(): CompletedLine[] {
+    const lines: CompletedLine[] = [];
+    for (let index = 0; index < 5; index += 1) {
+      lines.push({ cells: Array.from({ length: 5 }, (_, column) => index * 5 + column) });
+      lines.push({ cells: Array.from({ length: 5 }, (_, row) => row * 5 + index) });
+    }
+    lines.push({ cells: [0, 6, 12, 18, 24] });
+    lines.push({ cells: [4, 8, 12, 16, 20] });
+    return lines.filter((line) => line.cells.every((cell) => game.marked[cell]));
+  }
+
+  function render(announce = false, previousLineCount = 0): void {
+    if (!grid || !lineLayer || !seedLabel || !progress) return;
+
+    grid.querySelectorAll<HTMLButtonElement>("[data-cell-index]").forEach((cell) => {
+      const index = Number(cell.dataset.cellIndex);
+      const text = cell.querySelector<HTMLElement>("[data-cell-text]");
+      if (text) text.textContent = game.tiles[index];
+      const marked = game.marked[index];
+      cell.classList.toggle("is-marked", marked);
+      cell.setAttribute("aria-pressed", String(marked));
+      cell.setAttribute("aria-label", index === freeSpaceIndex
+        ? "Free space, already marked"
+        : `${game.tiles[index]}${marked ? ", marked" : ""}`);
+    });
+
+    seedLabel.textContent = `Seed ${game.seed.toString(16).padStart(8, "0").toUpperCase()}`;
+    const markedCount = game.marked.filter(Boolean).length - 1;
+    progress.textContent = `${markedCount} / 24 marked`;
+
+    const completedLines = getCompletedLines();
+    lineLayer.replaceChildren();
+    for (const line of completedLines) {
+      const first = line.cells[0];
+      const last = line.cells[line.cells.length - 1];
+      const stroke = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      stroke.setAttribute("x1", `${first % 5 + 0.5}`);
+      stroke.setAttribute("y1", `${Math.floor(first / 5) + 0.5}`);
+      stroke.setAttribute("x2", `${last % 5 + 0.5}`);
+      stroke.setAttribute("y2", `${Math.floor(last / 5) + 0.5}`);
+      stroke.setAttribute("class", "bingo-line");
+      lineLayer.append(stroke);
+    }
+
+    if (announce && completedLines.length > previousLineCount && status) {
+      const newLines = completedLines.length - previousLineCount;
+      status.textContent = newLines === 1
+        ? "Bingo! You completed a line!"
+        : `Bingo! You completed ${newLines} new lines!`;
+      showConfetti();
+    } else if (status) {
+      status.textContent = completedLines.length
+        ? `You have ${completedLines.length} ${completedLines.length === 1 ? "line" : "lines"} — keep watching for more!`
+        : "Let the holiday movie magic begin.";
+    }
+  }
+
+  function showConfetti(): void {
+    if (!confettiContainer) return;
+    confettiContainer.replaceChildren();
+    const colors = ["#a83c36", "#c79a53", "#174b3b", "#e7bd70", "#6f9677"];
+    for (let index = 0; index < 36; index += 1) {
+      const piece = document.createElement("span");
+      piece.className = "confetti-piece";
+      piece.style.left = `${(index * 37) % 100}%`;
+      piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+      piece.style.setProperty("--confetti-delay", `${(index % 9) * 45}ms`);
+      piece.style.setProperty("--confetti-drift", `${((index * 19) % 120) - 60}px`);
+      piece.style.setProperty("--confetti-spin", `${360 + (index * 83) % 720}deg`);
+      piece.classList.toggle("is-ribbon", index % 3 === 0);
+      confettiContainer.append(piece);
+    }
+    window.setTimeout(() => confettiContainer.replaceChildren(), 2600);
+  }
+
+  document.querySelectorAll<HTMLButtonElement>("[data-cell-index]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const index = Number(cell.dataset.cellIndex);
+      if (index === freeSpaceIndex) return;
+      const previousLineCount = getCompletedLines().length;
+      game.marked[index] = !game.marked[index];
+      saveCard();
+      render(true, previousLineCount);
+    });
+  });
+
+  document.querySelector<HTMLButtonElement>("[data-new-card]")?.addEventListener("click", () => {
+    game = createCard(createSeed());
+    saveCard();
+    render();
+    status && (status.textContent = "A fresh card is ready. Happy watching!");
+  });
+
+  document.querySelector<HTMLButtonElement>("[data-reset-card]")?.addEventListener("click", () => {
+    game.marked = game.marked.map((_, index) => index === freeSpaceIndex);
+    saveCard();
+    render();
+    status && (status.textContent = "Your card has been reset. Happy watching!");
+  });
+
+  saveCard();
+  render();
+</script>
+
+<style>
+  .bingo-page { position: relative; }
+  .bingo-intro { align-items: end; }
+  .bingo-intro .section-copy { max-width: 520px; }
+  .bingo-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+  .bingo-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform .15s ease, background-color .15s ease, border-color .15s ease; }
+  .bingo-button:hover { transform: translateY(-1px); }
+  .bingo-button-primary { border-color: var(--green); background: var(--green); color: var(--paper); }
+  .bingo-button-primary:hover { border-color: var(--green-dark); background: var(--green-dark); }
+  .bingo-button-primary span { color: #ead5a7; }
+  .bingo-button-secondary { background: var(--paper); color: var(--green); }
+  .bingo-button-secondary:hover { border-color: var(--gold); background: var(--soft); }
+  .bingo-card { position: relative; width: min(100%, 760px); margin: 28px auto 0; padding: clamp(18px, 4vw, 34px); overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 12px 36px #1d332a0d; }
+  .bingo-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+  .bingo-card-kicker { margin: 0 0 4px; color: var(--red); font-size: 9px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+  .bingo-card-heading h3 { margin: 0; color: var(--green-dark); font-family: var(--font-display-bold); font-size: clamp(22px, 4vw, 29px); font-weight: 400; letter-spacing: -.03em; }
+  .bingo-seed { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; letter-spacing: .07em; }
+  .bingo-letters, .bingo-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .bingo-letters { margin-bottom: 7px; color: var(--red); font-family: var(--font-display-bold); font-size: clamp(16px, 3.5vw, 22px); text-align: center; }
+  .bingo-grid { position: relative; gap: 5px; isolation: isolate; }
+  .bingo-cell { position: relative; display: grid; min-width: 0; min-height: clamp(68px, 14vw, 112px); place-items: center; padding: 8px 5px; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); cursor: pointer; transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+  .bingo-cell:hover:not(:disabled) { border-color: var(--gold); background: var(--soft-gold); }
+  .bingo-cell:focus-visible { z-index: 2; outline-offset: 1px; }
+  .bingo-cell:disabled { cursor: default; }
+  .bingo-cell-text { position: relative; z-index: 1; max-width: 100%; font-family: var(--font-medium); font-size: clamp(9px, 1.7vw, 12px); line-height: 1.25; text-align: center; transition: opacity .16s ease; }
+  .bingo-cell.is-marked { border-color: var(--soft-border); background: var(--soft-green); }
+  .bingo-cell.is-marked .bingo-cell-text { opacity: .38; }
+  .bingo-cell.is-marked .bingo-x { opacity: 1; transform: rotate(-12deg) scale(1); }
+  .bingo-cell:disabled .bingo-cell-text { color: var(--green); font-family: var(--font-bold); font-size: clamp(8px, 1.5vw, 11px); letter-spacing: .06em; }
+  .bingo-x { position: absolute; z-index: 1; color: var(--red); font-family: Arial, sans-serif; font-size: clamp(42px, 8vw, 76px); font-weight: 300; line-height: 1; opacity: 0; transform: rotate(-12deg) scale(.75); transition: opacity .16s ease, transform .16s ease; }
+  .bingo-lines { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .bingo-line { stroke: var(--red); stroke-width: .07; stroke-linecap: round; opacity: .9; filter: drop-shadow(0 1px 1px var(--paper)); }
+  .bingo-card-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 16px; color: var(--muted); font-size: 10px; }
+  .bingo-card-footer > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+  .bingo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .bingo-status { min-height: 24px; margin: 19px auto 0; color: var(--green); font-family: var(--font-display); font-size: 19px; text-align: center; }
+  .bingo-note { margin: 4px auto 0; color: var(--muted); font-size: 10px; line-height: 1.5; text-align: center; }
+  .confetti { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
+  .confetti-piece { position: absolute; top: -16px; width: 8px; height: 13px; border-radius: 2px; background: var(--confetti-color); animation: confetti-fall 2.2s cubic-bezier(.25,.46,.45,.94) var(--confetti-delay) both; }
+  .confetti-piece.is-ribbon { width: 5px; height: 18px; border-radius: 99px; }
+  @keyframes confetti-fall { to { transform: translate3d(var(--confetti-drift), 620px, 0) rotate(var(--confetti-spin)); opacity: .2; } }
+
+  @media (max-width: 650px) {
+    .bingo-intro { flex-direction: column; align-items: stretch; gap: 14px; }
+    .bingo-actions { justify-content: flex-start; }
+    .bingo-button { min-height: 39px; padding-inline: 12px; font-size: 11px; }
+    .bingo-card { margin-top: 18px; padding: 15px 10px; }
+    .bingo-grid { gap: 3px; }
+    .bingo-cell { min-height: clamp(58px, 16vw, 88px); padding: 5px 2px; }
+    .bingo-cell-text { font-size: clamp(8px, 2.2vw, 10px); }
+    .bingo-card-footer { font-size: 9px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bingo-button, .bingo-cell, .bingo-cell-text, .bingo-x { transition: none; }
+    .confetti-piece { animation-duration: .01ms; }
+  }
+</style>

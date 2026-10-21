@@ -2,7 +2,7 @@
 interface Props {
   title: string;
   description: string;
-  activeView: "upcoming" | "recent" | "calendar";
+  activeView: "upcoming" | "recent" | "calendar" | "bingo";
 }
 
 const { title, description, activeView } = Astro.props;
@@ -10,6 +10,7 @@ const navigation = [
   { label: "Upcoming", href: "/", key: "upcoming" },
   { label: "Recently aired", href: "/recently-aired", key: "recent" },
   { label: "Calendar", href: "/calendar", key: "calendar" },
+  { label: "Bingo", href: "/bingo", key: "bingo" },
 ] as const;
 ---
 
@@ -35,7 +36,7 @@ const navigation = [
     <title>{title} · Countdown to Christmas</title>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to schedule</a>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="site-shell">
       <header class="site-header">
         <a class="brand" href="/" aria-label="Countdown to Christmas home">
@@ -66,7 +67,7 @@ const navigation = [
           </div>
         </section>
 
-        <nav class="view-nav" aria-label="Schedule views">
+        <nav class="view-nav" aria-label="Site navigation">
           {navigation.map((item) => (
             <a
               href={item.href}
@@ -190,7 +191,7 @@ const navigation = [
   .brand-name strong { font-size: 15px; letter-spacing: .09em; }
   .season-label { display: inline-flex; align-items: center; gap: 9px; color: var(--muted); font-family: var(--font-bold); font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
   .season-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px #a83c361a; }
-  .hero { position: relative; display: flex; min-height: 340px; align-items: center; overflow: hidden; border-radius: 9px; background: var(--green); color: var(--paper); }
+  .hero { position: relative; display: flex; min-height: 340px; align-items: center; overflow: hidden; border-radius: 9px; background: var(--green); color: #e7e9df; }
   .hero::before { position: absolute; inset: 0; background: radial-gradient(ellipse at 73% 110%, #34614a 0, transparent 47%), linear-gradient(105deg, #123c30 0%, #174b3b 60%, #1a513f 100%); content: ""; }
   .hero-copy { position: relative; z-index: 1; width: 62%; padding: 48px 8%; }
   .eyebrow { margin: 0 0 17px; color: #d9c295; font-family: var(--font-medium); font-size: 10px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
