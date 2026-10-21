@@ -14,6 +14,17 @@ const groups = [...groupScheduleByDate().entries()]
 const visibleCount = schedule.filter((item) => mode === "recent" ? item.date < today : item.date >= today).length;
 const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+const formatDayCounter = (date: string, referenceDate: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const [referenceYear, referenceMonth, referenceDay] = referenceDate.split("-").map(Number);
+  const days = Math.round(
+    (Date.UTC(year, month - 1, day) - Date.UTC(referenceYear, referenceMonth - 1, referenceDay)) / 86_400_000,
+  );
+  if (days === 0) return "0 days";
+  const count = Math.abs(days);
+  const label = `${count} ${count === 1 ? "day" : "days"}`;
+  return days > 0 ? `${label} away` : `${label} ago`;
+};
 ---
 
 <div class="page-intro">
@@ -37,7 +48,8 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
       <section class="schedule-day" data-event-date={date} hidden={!shouldShow} aria-label={formatDate(date, { weekday: "long", month: "long", day: "numeric" })}>
         <header class="day-heading">
           <h3>{formatDate(date, { weekday: "long", month: "long", day: "numeric" })}</h3>
-          <div>
+          <div class="day-heading-badges">
+            <span class="day-counter" data-day-counter>{formatDayCounter(date, today)}</span>
             {isDouble && <span class="double-badge">Double feature</span>}
           </div>
         </header>
@@ -90,6 +102,15 @@ const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
       for (const group of groups) {
         const date = group.dataset.eventDate ?? "";
         const visible = mode === "recent" ? date < today : date >= today;
+        const [year, month, day] = date.split("-").map(Number);
+        const [todayYear, todayMonth, todayDay] = today.split("-").map(Number);
+        const days = Math.round(
+          (Date.UTC(year, month - 1, day) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / 86_400_000,
+        );
+        const dayCount = Math.abs(days);
+        const label = `${dayCount} ${dayCount === 1 ? "day" : "days"}`;
+        const dayCounter = group.querySelector<HTMLElement>("[data-day-counter]");
+        if (dayCounter) dayCounter.textContent = days === 0 ? "0 days" : days > 0 ? `${label} away` : `${label} ago`;
         group.hidden = !visible;
         if (visible) count += group.querySelectorAll(".event-item").length;
       }

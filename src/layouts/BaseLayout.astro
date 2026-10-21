@@ -222,8 +222,10 @@ const navigation = [
   .day-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 19px; border-bottom: 1px solid var(--soft-border); }
   .day-heading h3 { margin: 0; color: var(--green); font-family: var(--font-bold); font-size: 12px; font-weight: 750; letter-spacing: .02em; }
   .day-heading time { color: var(--muted); font-size: 11px; }
-  .double-badge, .event-note { display: inline-flex; align-items: center; border-radius: 99px; font-size: 9px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+  .day-heading-badges { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; }
+  .double-badge, .day-counter, .event-note { display: inline-flex; align-items: center; border-radius: 99px; font-size: 9px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
   .double-badge { padding: 5px 8px; background: var(--soft-gold); color: var(--gold); }
+  .day-counter { padding: 5px 8px; background: var(--soft-border); color: var(--muted); }
   .event-list { margin: 0; padding: 0; list-style: none; }
   .event-item { display: flex; align-items: flex-start; gap: 15px; padding: 17px 19px; }
   .event-item + .event-item { border-top: 1px dashed var(--dash-border); }
