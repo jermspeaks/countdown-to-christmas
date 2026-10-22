@@ -12,6 +12,21 @@ const navigation = [
   { label: "Calendar", href: "/calendar", key: "calendar" },
   { label: "Bingo", href: "/bingo", key: "bingo" },
 ] as const;
+
+const now = new Date();
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+const dayDifference = (targetDate: string, referenceDate: string) => {
+  const [year, month, day] = targetDate.split("-").map(Number);
+  const [referenceYear, referenceMonth, referenceDay] = referenceDate.split("-").map(Number);
+  return Math.round(
+    (Date.UTC(year, month - 1, day) - Date.UTC(referenceYear, referenceMonth - 1, referenceDay)) / 86_400_000,
+  );
+};
+const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+const formatCountdown = (days: number) => days === 0 ? "Today" : `${days} ${days === 1 ? "day" : "days"} away`;
+const christmasDate = `${Number(today.slice(0, 4)) + (today > `${today.slice(0, 4)}-12-25` ? 1 : 0)}-12-25`;
+const christmasCountdown = today === christmasDate ? "It's Christmas!" : formatCountdown(dayDifference(christmasDate, today));
 ---
 
 <!doctype html>
@@ -33,13 +48,13 @@ const navigation = [
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <title>{title} · Countdown to Christmas</title>
+    <title>{title} · Countdown to Christmas 2026</title>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="site-shell">
       <header class="site-header">
-        <a class="brand" href="/" aria-label="Countdown to Christmas home">
+        <a class="brand" href="/" aria-label="Countdown to Christmas 2026 home">
           <span class="brand-mark" aria-hidden="true">✳</span>
           <span class="brand-name">a very merry<br /><strong>watch list</strong></span>
         </a>
@@ -54,16 +69,20 @@ const navigation = [
       <main id="main-content">
         <section class="hero" aria-labelledby="page-title">
           <div class="hero-copy">
-            <p class="eyebrow">Hallmark Channel · Countdown to Christmas</p>
-            <h1 id="page-title">Make room for<br /><em>a little magic.</em></h1>
-            <p class="hero-description">Your cozy guide to every new holiday movie and episode this season.</p>
+            <p class="eyebrow">Hallmark Channel · Countdown to Christmas 2026</p>
+            <h1 id="page-title">Make room for <em>Christmas.</em></h1>
+            <!-- <p class="hero-description">Your cozy guide to every new holiday movie and episode this season.</p> -->
           </div>
-          <div class="hero-art" aria-hidden="true">
-            <span class="art-star star-one">✳</span>
-            <span class="art-star star-two">✦</span>
-            <span class="art-snow">❄</span>
-            <span class="art-caption">the most<br />wonderful<br /><i>time to watch</i></span>
-            <span class="art-base"></span>
+          <div class="hero-art">
+            <span class="art-star star-one" aria-hidden="true">✳</span>
+            <span class="art-star star-two" aria-hidden="true">✦</span>
+            <span class="art-snow" aria-hidden="true">❄</span>
+            <section class="countdown-card" aria-label="Countdown to Christmas Day">
+              <span class="countdown-label">Christmas Day</span>
+              <strong class="countdown-value" data-christmas-countdown>{christmasCountdown}</strong>
+              <time class="countdown-date" data-christmas-date datetime={christmasDate}>{formatDate(christmasDate, { month: "long", day: "numeric", year: "numeric" })}</time>
+            </section>
+            <span class="art-base" aria-hidden="true"></span>
           </div>
         </section>
 
@@ -86,7 +105,7 @@ const navigation = [
       <footer class="site-footer">
         <span class="footer-sparkle" aria-hidden="true">✳</span>
         <p>Made for the most wonderful time of the year.</p>
-        <p class="fine-print">A fan-made schedule guide. Air times are shown as listed (ET/PT); dates are used for the aired / upcoming split.</p>
+        <p class="fine-print">A fan-made schedule guide. Air times are shown as listed (ET/CT); dates are used for the aired / upcoming split.</p>
       </footer>
     </div>
     <script>
@@ -191,7 +210,7 @@ const navigation = [
   .brand-name strong { font-size: 15px; letter-spacing: .09em; }
   .season-label { display: inline-flex; align-items: center; gap: 9px; color: var(--muted); font-family: var(--font-bold); font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
   .season-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px #a83c361a; }
-  .hero { position: relative; display: flex; min-height: 340px; align-items: center; overflow: hidden; border-radius: 9px; background: var(--green); color: #e7e9df; }
+  .hero { position: relative; display: flex; min-height: 240px; align-items: center; overflow: hidden; border-radius: 9px; background: var(--green); color: #e7e9df; }
   .hero::before { position: absolute; inset: 0; background: radial-gradient(ellipse at 73% 110%, #34614a 0, transparent 47%), linear-gradient(105deg, #123c30 0%, #174b3b 60%, #1a513f 100%); content: ""; }
   .hero-copy { position: relative; z-index: 1; width: 62%; padding: 48px 8%; }
   .eyebrow { margin: 0 0 17px; color: #d9c295; font-family: var(--font-medium); font-size: 10px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
@@ -203,8 +222,8 @@ const navigation = [
   .star-one { top: 22%; right: 27%; font-size: 27px; }
   .star-two { top: 33%; right: 13%; font-size: 18px; color: #fff7e6; }
   .art-snow { top: 17%; right: 48%; color: #ffffff8c; font-size: 15px; }
-  .art-caption { position: absolute; right: 13%; bottom: 20%; color: #e6d5b0; font-family: var(--font-display); font-size: 23px; line-height: 1.05; text-align: right; transform: rotate(-5deg); }
-  .art-caption i { color: #fff7e6; font-size: 19px; }
+  .hero-art .countdown-card { position: absolute; top: 50%; right: 12%; z-index: 1; width: min(180px, calc(100% - 24px)); min-width: 0; padding: 14px 16px; border-color: #e6d5b066; box-shadow: 0 8px 24px #09281d33; transform: translateY(-50%); }
+  .hero-art .countdown-value { font-size: 18px; }
   .art-base { position: absolute; right: -5%; bottom: -52%; width: 110%; aspect-ratio: 1; border: 1px solid #e6d5b044; border-radius: 50%; box-shadow: 0 0 0 27px #e6d5b00a, 0 0 0 54px #e6d5b00a; }
   .view-nav { display: flex; gap: 31px; margin: 31px 0 34px; border-bottom: 1px solid var(--line); }
   .view-link { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 0 0 14px; color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
@@ -305,11 +324,10 @@ const navigation = [
     .season-label { font-size: 9px; letter-spacing: .09em; }
     .hero { min-height: 310px; }
     .hero-copy { width: 78%; padding: 38px 25px; }
-    .hero-art { width: 35%; opacity: .64; }
+    .hero-art { width: 56%; }
     .eyebrow { max-width: 210px; font-size: 8px; line-height: 1.5; }
     .hero-description { max-width: 260px; font-size: 12px; }
-    .art-caption { right: 7%; font-size: 16px; }
-    .art-caption i { font-size: 14px; }
+    .hero-art .countdown-card { top: auto; right: 7%; bottom: 14%; width: min(180px, calc(100% - 16px)); padding: 12px; transform: none; }
     .view-nav { gap: 22px; margin: 23px 0 27px; }
     .view-link { font-size: 11px; }
     .page-intro { align-items: start; }
