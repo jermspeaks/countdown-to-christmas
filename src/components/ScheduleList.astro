@@ -8,18 +8,26 @@ interface Props {
 }
 
 const { mode } = Astro.props;
-const today = new Date().toISOString().slice(0, 10);
+const now = new Date();
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 const groups = [...groupScheduleByDate().entries()]
   .sort(([left], [right]) => mode === "recent" ? right.localeCompare(left) : left.localeCompare(right));
 const visibleCount = schedule.filter((item) => mode === "recent" ? item.date < today : item.date >= today).length;
 const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
-const formatDayCounter = (date: string, referenceDate: string) => {
-  const [year, month, day] = date.split("-").map(Number);
+const dayDifference = (targetDate: string, referenceDate: string) => {
+  const [year, month, day] = targetDate.split("-").map(Number);
   const [referenceYear, referenceMonth, referenceDay] = referenceDate.split("-").map(Number);
-  const days = Math.round(
+  return Math.round(
     (Date.UTC(year, month - 1, day) - Date.UTC(referenceYear, referenceMonth - 1, referenceDay)) / 86_400_000,
   );
+};
+const formatCountdown = (days: number) => days === 0 ? "Today" : `${days} ${days === 1 ? "day" : "days"} away`;
+const nextEvent = schedule.find((item) => item.date >= today);
+const christmasDate = `${Number(today.slice(0, 4)) + (today > `${today.slice(0, 4)}-12-25` ? 1 : 0)}-12-25`;
+const christmasCountdown = today === christmasDate ? "It's Christmas!" : formatCountdown(dayDifference(christmasDate, today));
+const formatDayCounter = (date: string, referenceDate: string) => {
+  const days = dayDifference(date, referenceDate);
   if (days === 0) return "0 days";
   const count = Math.abs(days);
   const label = `${count} ${count === 1 ? "day" : "days"}`;
@@ -29,7 +37,6 @@ const formatDayCounter = (date: string, referenceDate: string) => {
 
 <div class="page-intro">
   <div>
-    <!-- <p class="section-kicker">{mode === "upcoming" ? "Save the date" : "Previously on"}</p> -->
     <h2 class="section-title">{mode === "upcoming" ? "Coming up next" : "Recently aired"}</h2>
     <p class="section-copy">
       {mode === "upcoming"
@@ -37,7 +44,22 @@ const formatDayCounter = (date: string, referenceDate: string) => {
         : "A look back at the season's newest holiday stories."}
     </p>
   </div>
-  <span class="event-count" data-event-count>{visibleCount} {visibleCount === 1 ? "title" : "titles"}</span>
+  <div class="page-intro-meta">
+    <div class="countdown-cards" aria-label="Holiday countdowns">
+      <section class="countdown-card" aria-label="Countdown to the next scheduled broadcast">
+        <span class="countdown-label">Next broadcast</span>
+        <strong class="countdown-value" data-next-show-countdown>{nextEvent ? formatCountdown(dayDifference(nextEvent.date, today)) : "Season complete"}</strong>
+        <span class="countdown-detail" data-next-show-title>{nextEvent?.title ?? "No more broadcasts scheduled"}</span>
+        {nextEvent && <time class="countdown-date" data-next-show-date datetime={nextEvent.date}>{formatDate(nextEvent.date, { weekday: "long", month: "long", day: "numeric" })}</time>}
+      </section>
+      <section class="countdown-card" aria-label="Countdown to Christmas Day">
+        <span class="countdown-label">Christmas Day</span>
+        <strong class="countdown-value" data-christmas-countdown>{christmasCountdown}</strong>
+        <time class="countdown-date" data-christmas-date datetime={christmasDate}>{formatDate(christmasDate, { month: "long", day: "numeric", year: "numeric" })}</time>
+      </section>
+    </div>
+    <span class="event-count" data-event-count>{visibleCount} {visibleCount === 1 ? "title" : "titles"}</span>
+  </div>
 </div>
 
 <div class="schedule-groups" data-schedule-list data-list-mode={mode}>
@@ -58,7 +80,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
             const details = getScheduleDetails(item.id);
             const poster = getScheduleListPoster(item.title);
             return (
-              <li class="event-item">
+              <li class="event-item" data-event-title={item.title}>
                 <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
                 <img class:list={["event-poster", { "event-poster--movie": poster.format === "movie" }]} src={poster.src} alt={poster.alt} loading="lazy" decoding="async" width="112" height={poster.format === "movie" ? 168 : 84} />
                 <div class="event-content">
@@ -85,7 +107,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
 <p class="empty-state" data-empty-state hidden>
   {mode === "upcoming" ? "The season's schedule is all wrapped up. Check back next year!" : "Nothing has aired yet. The holiday fun starts soon!"}
 </p>
-<p class="date-note">Upcoming and recently aired are separated by broadcast date. Listed times retain Hallmark's original ET/PT notation.</p>
+<p class="date-note">Countdowns are date-based because exact broadcast times aren’t provided. Listed times retain Hallmark's original ET/PT notation.</p>
 
 <script>
   const list = document.querySelector<HTMLElement>("[data-schedule-list]");
@@ -95,6 +117,50 @@ const formatDayCounter = (date: string, referenceDate: string) => {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     };
+    const dayDifference = (targetDate: string, referenceDate: string) => {
+      const [year, month, day] = targetDate.split("-").map(Number);
+      const [referenceYear, referenceMonth, referenceDay] = referenceDate.split("-").map(Number);
+      return Math.round(
+        (Date.UTC(year, month - 1, day) - Date.UTC(referenceYear, referenceMonth - 1, referenceDay)) / 86_400_000,
+      );
+    };
+    const formatCountdown = (days: number) => days === 0 ? "Today" : `${days} ${days === 1 ? "day" : "days"} away`;
+    const formatLongDate = (date: string, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+    const updateCountdowns = (today: string, groups: HTMLElement[]) => {
+      const nextGroup = groups
+        .filter((group) => (group.dataset.eventDate ?? "") >= today)
+        .sort((left, right) => (left.dataset.eventDate ?? "").localeCompare(right.dataset.eventDate ?? ""))[0];
+      const nextDate = nextGroup?.dataset.eventDate;
+      const nextTitle = nextGroup?.querySelector<HTMLElement>(".event-item")?.dataset.eventTitle;
+      const nextCountdown = document.querySelector<HTMLElement>("[data-next-show-countdown]");
+      const nextTitleLabel = document.querySelector<HTMLElement>("[data-next-show-title]");
+      const nextDateLabel = document.querySelector<HTMLTimeElement>("[data-next-show-date]");
+      if (nextCountdown) nextCountdown.textContent = nextDate ? formatCountdown(dayDifference(nextDate, today)) : "Season complete";
+      if (nextTitleLabel) nextTitleLabel.textContent = nextTitle ?? "No more broadcasts scheduled";
+      if (nextDateLabel) {
+        nextDateLabel.hidden = !nextDate;
+        if (nextDate) {
+          nextDateLabel.dateTime = nextDate;
+          nextDateLabel.textContent = formatLongDate(nextDate, { weekday: "long", month: "long", day: "numeric" });
+        }
+      }
+
+      const currentYear = Number(today.slice(0, 4));
+      const thisChristmas = `${currentYear}-12-25`;
+      const targetChristmas = today <= thisChristmas ? thisChristmas : `${currentYear + 1}-12-25`;
+      const christmasCountdown = document.querySelector<HTMLElement>("[data-christmas-countdown]");
+      const christmasDateLabel = document.querySelector<HTMLTimeElement>("[data-christmas-date]");
+      if (christmasCountdown) {
+        christmasCountdown.textContent = today === targetChristmas
+          ? "It's Christmas!"
+          : formatCountdown(dayDifference(targetChristmas, today));
+      }
+      if (christmasDateLabel) {
+        christmasDateLabel.dateTime = targetChristmas;
+        christmasDateLabel.textContent = formatLongDate(targetChristmas, { month: "long", day: "numeric", year: "numeric" });
+      }
+    };
     const updateList = () => {
       const today = getLocalDate();
       const groups = [...list.querySelectorAll<HTMLElement>("[data-event-date]")];
@@ -102,11 +168,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
       for (const group of groups) {
         const date = group.dataset.eventDate ?? "";
         const visible = mode === "recent" ? date < today : date >= today;
-        const [year, month, day] = date.split("-").map(Number);
-        const [todayYear, todayMonth, todayDay] = today.split("-").map(Number);
-        const days = Math.round(
-          (Date.UTC(year, month - 1, day) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / 86_400_000,
-        );
+        const days = dayDifference(date, today);
         const dayCount = Math.abs(days);
         const label = `${dayCount} ${dayCount === 1 ? "day" : "days"}`;
         const dayCounter = group.querySelector<HTMLElement>("[data-day-counter]");
@@ -114,6 +176,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
         group.hidden = !visible;
         if (visible) count += group.querySelectorAll(".event-item").length;
       }
+      updateCountdowns(today, groups);
       const emptyState = document.querySelector<HTMLElement>("[data-empty-state]");
       if (emptyState) emptyState.hidden = count > 0;
       const countLabel = document.querySelector<HTMLElement>("[data-event-count]");
