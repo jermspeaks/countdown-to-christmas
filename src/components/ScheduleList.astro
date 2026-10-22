@@ -59,11 +59,6 @@ const formatDayCounter = (date: string, referenceDate: string) => {
         <span class="countdown-detail" data-release-title>{counterEvent?.title ?? (mode === "recent" ? "No releases yet" : "No more broadcasts scheduled")}</span>
         {counterEvent && <time class="countdown-date" data-release-date datetime={counterEvent.date}>{formatDate(counterEvent.date, { weekday: "long", month: "long", day: "numeric" })}</time>}
       </section>
-      <!-- <section class="countdown-card" aria-label="Countdown to Christmas Day">
-        <span class="countdown-label">Christmas Day</span>
-        <strong class="countdown-value" data-christmas-countdown>{christmasCountdown}</strong>
-        <time class="countdown-date" data-christmas-date datetime={christmasDate}>{formatDate(christmasDate, { month: "long", day: "numeric", year: "numeric" })}</time>
-      </section> -->
     </div>
     <span class="event-count" data-event-count>{visibleCount} {visibleCount === 1 ? "title" : "titles"}</span>
   </div>
