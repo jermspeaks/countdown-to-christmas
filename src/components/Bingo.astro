@@ -9,6 +9,9 @@
       <p class="section-copy">Spot the small-town magic, mark a square, and see how quickly the holiday tropes line up.</p>
     </div>
     <div class="bingo-actions" aria-label="Bingo card actions">
+      <button class="bingo-button bingo-button-secondary" type="button" data-copy-seed>
+        Copy seed
+      </button>
       <button class="bingo-button bingo-button-primary" type="button" data-new-card>
         <span aria-hidden="true">✦</span> New card
       </button>
@@ -52,6 +55,12 @@
     </div>
   </div>
 
+  <form class="bingo-seed-form" data-seed-form>
+    <label for="bingo-seed-input">Play a card by seed</label>
+    <input id="bingo-seed-input" name="seed" type="text" inputmode="text" autocomplete="off" maxlength="10" pattern="(?:0[xX])?[0-9a-fA-F]{1,8}" placeholder="e.g. 1A2B3C4D" aria-describedby="bingo-seed-help" data-seed-input />
+    <button class="bingo-button bingo-button-secondary" type="submit">Use seed</button>
+    <span id="bingo-seed-help" class="bingo-seed-help">Enter up to 8 hexadecimal digits. The card link includes its seed.</span>
+  </form>
   <p class="bingo-status" aria-live="polite" data-bingo-status>Let the holiday movie magic begin.</p>
   <p class="bingo-note">Your card and marked squares are saved on this device. Each new card uses a seeded shuffle so its layout can be reproduced.</p>
   <div class="confetti" aria-hidden="true" data-confetti></div>
@@ -75,6 +84,7 @@
 
   const grid = document.querySelector<HTMLElement>("[data-bingo-grid]");
   const seedLabel = document.querySelector<HTMLElement>("[data-seed-label]");
+  const seedInput = document.querySelector<HTMLInputElement>("[data-seed-input]");
   const progress = document.querySelector<HTMLElement>("[data-progress]");
   const status = document.querySelector<HTMLElement>("[data-bingo-status]");
   const lineLayer = document.querySelector<SVGSVGElement>("[data-bingo-lines]");
@@ -115,6 +125,23 @@
     return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   }
 
+  function formatSeed(seed: number): string {
+    return seed.toString(16).padStart(8, "0").toUpperCase();
+  }
+
+  function parseSeed(value: string | null): number | null {
+    if (!value) return null;
+    const normalized = value.trim().replace(/^0x/i, "");
+    if (!/^[0-9a-fA-F]{1,8}$/.test(normalized)) return null;
+    return Number.parseInt(normalized, 16) >>> 0;
+  }
+
+  function updateSeedUrl(seed: number): void {
+    const url = new URL(window.location.href);
+    url.searchParams.set("seed", formatSeed(seed));
+    window.history.replaceState(null, "", url);
+  }
+
   function isValidState(value: unknown): value is BingoState {
     if (typeof value !== "object" || value === null) return false;
     const candidate = value as Partial<BingoState>;
@@ -142,7 +169,9 @@
     return createCard(createSeed());
   }
 
-  let game = loadCard();
+  const requestedSeed = new URL(window.location.href).searchParams.get("seed");
+  const sharedSeed = parseSeed(requestedSeed);
+  let game = sharedSeed === null ? loadCard() : createCard(sharedSeed);
 
   function saveCard(): void {
     try {
@@ -178,7 +207,9 @@
         : `${game.tiles[index]}${marked ? ", marked" : ""}`);
     });
 
-    seedLabel.textContent = `Seed ${game.seed.toString(16).padStart(8, "0").toUpperCase()}`;
+    const formattedSeed = formatSeed(game.seed);
+    seedLabel.textContent = `Seed ${formattedSeed}`;
+    if (seedInput && document.activeElement !== seedInput) seedInput.value = formattedSeed;
     const markedCount = game.marked.filter(Boolean).length - 1;
     progress.textContent = `${markedCount} / 24 marked`;
 
@@ -238,8 +269,37 @@
     });
   });
 
+  document.querySelector<HTMLButtonElement>("[data-copy-seed]")?.addEventListener("click", async () => {
+    const formattedSeed = formatSeed(game.seed);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable.");
+      await navigator.clipboard.writeText(formattedSeed);
+      status && (status.textContent = `Seed ${formattedSeed} copied. Share it or enter it to play the same card.`);
+    } catch {
+      seedInput?.focus();
+      seedInput?.select();
+      status && (status.textContent = `Your seed is ${formattedSeed}. Select it above and copy it to share.`);
+    }
+  });
+
+  document.querySelector<HTMLFormElement>("[data-seed-form]")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const nextSeed = parseSeed(seedInput?.value ?? null);
+    if (nextSeed === null) {
+      status && (status.textContent = "Enter up to 8 hexadecimal digits to load a card.");
+      seedInput?.focus();
+      return;
+    }
+    game = createCard(nextSeed);
+    updateSeedUrl(nextSeed);
+    saveCard();
+    render();
+    status && (status.textContent = `Card ${formatSeed(nextSeed)} is ready. Happy watching!`);
+  });
+
   document.querySelector<HTMLButtonElement>("[data-new-card]")?.addEventListener("click", () => {
     game = createCard(createSeed());
+    updateSeedUrl(game.seed);
     saveCard();
     render();
     status && (status.textContent = "A fresh card is ready. Happy watching!");
@@ -252,8 +312,12 @@
     status && (status.textContent = "Your card has been reset. Happy watching!");
   });
 
+  if (sharedSeed !== null) updateSeedUrl(sharedSeed);
   saveCard();
   render();
+  if (requestedSeed !== null && sharedSeed === null && status) {
+    status.textContent = "That seed is invalid. Showing your saved card instead.";
+  }
 </script>
 
 <style>
@@ -261,6 +325,11 @@
   .bingo-intro { align-items: end; }
   .bingo-intro .section-copy { max-width: 520px; }
   .bingo-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+  .bingo-seed-form { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; width: min(100%, 760px); margin: 18px auto 0; }
+  .bingo-seed-form label { color: var(--green-dark); font-size: 11px; font-weight: 700; }
+  .bingo-seed-form input { width: 146px; min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; }
+  .bingo-seed-form input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .bingo-seed-help { flex-basis: 100%; color: var(--muted); font-size: 10px; }
   .bingo-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform .15s ease, background-color .15s ease, border-color .15s ease; }
   .bingo-button:hover { transform: translateY(-1px); }
   .bingo-button-primary { border-color: var(--green); background: var(--green); color: var(--paper); }
@@ -301,6 +370,9 @@
   @media (max-width: 650px) {
     .bingo-intro { flex-direction: column; align-items: stretch; gap: 14px; }
     .bingo-actions { justify-content: flex-start; }
+    .bingo-seed-form { gap: 8px; }
+    .bingo-seed-form label { flex-basis: 100%; }
+    .bingo-seed-form input { width: min(146px, 45vw); }
     .bingo-button { min-height: 39px; padding-inline: 12px; font-size: 11px; }
     .bingo-card { margin-top: 18px; padding: 15px 10px; }
     .bingo-grid { gap: 3px; }
