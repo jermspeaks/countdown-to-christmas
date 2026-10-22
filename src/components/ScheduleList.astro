@@ -1,7 +1,7 @@
 ---
 import { groupScheduleByDate, schedule } from "../data/schedule";
 import { getScheduleDetails } from "../data/details";
-import { getSchedulePoster, isPlaceholderPoster } from "../data/posters";
+import { getScheduleListPoster } from "../data/posters";
 
 interface Props {
   mode: "upcoming" | "recent";
@@ -29,7 +29,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
 
 <div class="page-intro">
   <div>
-    <p class="section-kicker">{mode === "upcoming" ? "Save the date" : "Previously on"}</p>
+    <!-- <p class="section-kicker">{mode === "upcoming" ? "Save the date" : "Previously on"}</p> -->
     <h2 class="section-title">{mode === "upcoming" ? "Coming up next" : "Recently aired"}</h2>
     <p class="section-copy">
       {mode === "upcoming"
@@ -56,11 +56,11 @@ const formatDayCounter = (date: string, referenceDate: string) => {
         <ul class="event-list">
           {events.map((item) => {
             const details = getScheduleDetails(item.id);
-            const poster = getSchedulePoster(item.title);
+            const poster = getScheduleListPoster(item.title);
             return (
               <li class="event-item">
                 <time class="event-time" datetime={item.date}>{item.timeLabel}</time>
-                <img class="event-poster" src={poster.path} alt={isPlaceholderPoster(poster) ? "Generic Hallmark Channel artwork" : `${item.title} poster`} loading="lazy" decoding="async" width="112" height="84" />
+                <img class:list={["event-poster", { "event-poster--movie": poster.format === "movie" }]} src={poster.src} alt={poster.alt} loading="lazy" decoding="async" width="112" height={poster.format === "movie" ? 168 : 84} />
                 <div class="event-content">
                   <p class="event-title">
                     <a href={details.url} target="_blank" rel="noopener noreferrer">
