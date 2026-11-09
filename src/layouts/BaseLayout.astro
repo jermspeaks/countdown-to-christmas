@@ -287,28 +287,30 @@ const christmasCountdown = today === christmasDate ? "It's Christmas!" : formatC
   .month-button:disabled { color: #bcb9ad; cursor: not-allowed; }
   .calendar-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .calendar-table th { padding: 9px 4px; color: var(--muted); font-family: var(--font-bold); font-size: 10px; font-weight: 700; text-align: center; text-transform: uppercase; }
-  .calendar-table td { height: 70px; padding: 3px; border: 1px solid var(--soft-border); text-align: center; vertical-align: middle; }
-  .calendar-day { display: flex; width: 100%; height: 100%; min-height: 62px; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); cursor: pointer; }
+  .calendar-table td { height: 120px; padding: 3px; border: 1px solid var(--soft-border); text-align: center; vertical-align: middle; }
+  .calendar-day { position: relative; overflow: hidden; display: flex; width: 100%; height: 100%; min-height: 112px; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); cursor: pointer; }
   .calendar-day:hover { background: var(--soft); }
   .calendar-day.selected { background: var(--selected-bg); color: white; }
   .calendar-day.today:not(.selected) .day-number { color: var(--red); font-weight: 800; }
   .calendar-day:disabled { color: var(--disabled); cursor: default; }
   .day-number { font-family: var(--font-display); font-size: 17px; }
-  .calendar-mark { display: flex; gap: 3px; height: 5px; }
-  .calendar-mark i { width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
-  .calendar-day.selected .calendar-mark i { background: #f1d7a4; }
+  .calendar-day.has-posters { align-items: flex-start; justify-content: flex-start; padding: 0; background: var(--soft); }
+  .calendar-posters { position: absolute; inset: 0; display: flex; gap: 2px; }
+  .calendar-posters img { flex: 1 1 0; min-width: 0; height: 100%; object-fit: cover; object-position: center top; }
+  .calendar-day.has-posters:hover .calendar-posters img { filter: brightness(1.08); }
+  .calendar-day.past .calendar-posters img { filter: grayscale(.7); opacity: .6; }
+  .calendar-day.past.has-posters:hover .calendar-posters img { filter: grayscale(.3); opacity: .85; }
+  .calendar-day.has-posters .day-number { position: relative; margin: 4px; padding: 1px 7px; border-radius: 99px; background: rgb(0 0 0 / .6); color: white; font-size: 13px; line-height: 1.4; }
+  .calendar-day.has-posters.today .day-number { background: var(--red); color: white; }
+  .calendar-day.has-posters.selected { background: var(--soft); color: var(--ink); }
+  .calendar-day.has-posters.selected::after { content: ""; position: absolute; inset: 0; border: 3px solid var(--selected-bg); border-radius: 5px; pointer-events: none; }
+  .calendar-day.has-posters.selected .day-number { background: var(--selected-bg); }
   .date-details { margin-top: 20px; padding-top: 19px; border-top: 1px solid var(--line); }
-  .date-details h4 { margin: 0 0 12px; color: var(--green); font-family: var(--font-display-bold); font-size: 21px; font-weight: 400; }
-  .calendar-events { display: grid; gap: 8px; }
-  .calendar-event { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 5px; background: var(--soft); }
-  .calendar-event time { flex: 0 0 48px; color: var(--red); font-size: 11px; font-weight: 750; }
-  .calendar-event p { margin: 0; font-family: var(--font-display); font-size: 16px; line-height: 1.3; }
-  .calendar-event small { display: block; margin-top: 3px; color: var(--green); font-family: inherit; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .date-details-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .date-details h4 { margin: 0; color: var(--green); font-family: var(--font-display-bold); font-size: 21px; font-weight: 400; }
+  .calendar-event-list { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+  .calendar-event-list[hidden], .calendar-empty[hidden], .double-badge[hidden] { display: none; }
   .calendar-empty { color: var(--muted); font-size: 13px; }
-  .calendar-legend { display: flex; flex-wrap: wrap; gap: 17px; margin-top: 17px; color: var(--muted); font-size: 10px; }
-  .legend-item { display: inline-flex; align-items: center; gap: 7px; }
-  .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
-  .legend-dot.past { background: #bcb9ad; }
   .calendar-range-note { margin: 13px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 
   @media (min-width: 768px) {
@@ -344,13 +346,13 @@ const christmasCountdown = today === christmasDate ? "It's Christmas!" : formatC
     .event-details { margin-top: 9px; }
     .event-details p { font-size: 11px; }
     .calendar-panel { padding: 14px 10px; }
-    .calendar-table td { height: 55px; padding: 2px; }
-    .calendar-day { min-height: 48px; }
+    .calendar-table td { height: 84px; padding: 2px; }
+    .calendar-day { min-height: 78px; }
+    .calendar-day.has-posters .day-number { margin: 2px; padding: 0 5px; font-size: 11px; }
     .calendar-table th { font-size: 8px; }
     .day-number { font-size: 15px; }
     .calendar-toolbar h3 { font-size: 21px; }
     .month-button { width: 32px; height: 32px; }
-    .calendar-event { gap: 8px; padding: 11px 9px; }
     .site-footer { margin-top: 44px; }
   }
 

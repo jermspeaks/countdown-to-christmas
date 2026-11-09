@@ -1,5 +1,7 @@
 ---
 import { schedule } from "../data/schedule";
+import { getScheduleListPoster } from "../data/posters";
+import EventItem from "./EventItem.astro";
 
 const firstMonth = "2026-10";
 const lastMonth = "2026-12";
@@ -17,18 +19,31 @@ const calendarCells = Array.from({ length: Math.ceil((offset + dayCount) / 7) * 
   const day = index - offset + 1;
   return day < 1 || day > dayCount ? null : `${currentMonth}-${String(day).padStart(2, "0")}`;
 });
-const grouped = new Map<string, typeof schedule>();
-for (const item of schedule) grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
+const calendarEvents = schedule.map((item) => ({ ...item, poster: getScheduleListPoster(item.title).src }));
+const grouped = new Map<string, typeof calendarEvents>();
+for (const item of calendarEvents) grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
 const formatDate = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 const initialEvents = grouped.get(initialSelection) ?? [];
+const dayDifference = (targetDate: string, referenceDate: string) => {
+  const [year, month, day] = targetDate.split("-").map(Number);
+  const [referenceYear, referenceMonth, referenceDay] = referenceDate.split("-").map(Number);
+  return Math.round((Date.UTC(year, month - 1, day) - Date.UTC(referenceYear, referenceMonth - 1, referenceDay)) / 86_400_000);
+};
+const formatDayCounter = (date: string, referenceDate: string) => {
+  const days = dayDifference(date, referenceDate);
+  if (days === 0) return "Today";
+  const count = Math.abs(days);
+  const label = `${count} ${count === 1 ? "day" : "days"}`;
+  return days > 0 ? `${label} away` : `${label} ago`;
+};
 ---
 
 <div class="page-intro">
   <div>
     <p class="section-kicker">A season at a glance</p>
     <h2 class="section-title">The holiday calendar</h2>
-    <p class="section-copy">Pick a date to see what's premiering. Every little red dot means a new story.</p>
+    <p class="section-copy">Pick a date to see what's premiering. Every poster is a new story.</p>
   </div>
   <span class="event-count">October — December 2026</span>
 </div>
@@ -67,12 +82,16 @@ const initialEvents = grouped.get(initialSelection) ?? [];
               const isPast = date < todayKey;
               const dayNumber = Number(date.slice(-2));
               const label = formatDate(date, { weekday: "long", month: "long", day: "numeric" });
-              const eventLabel = dayEvents.length ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "broadcast" : "broadcasts"}` : ", no broadcasts";
+              const eventLabel = dayEvents.length ? `, ${dayEvents.map((item) => item.title).join(" and ")}` : ", no broadcasts";
               return (
                 <td>
-                  <button class:list={["calendar-day", { selected, today: date === todayKey }]} type="button" data-calendar-date={date} aria-label={`${label}${eventLabel}${isPast ? ", aired" : ", upcoming"}`} aria-pressed={selected}>
+                  <button class:list={["calendar-day", { selected, today: date === todayKey, past: isPast, "has-posters": dayEvents.length > 0 }]} type="button" data-calendar-date={date} aria-label={`${label}${eventLabel}${isPast ? ", aired" : ", upcoming"}`} aria-pressed={selected}>
+                    {dayEvents.length > 0 && (
+                      <span class="calendar-posters" aria-hidden="true">
+                        {dayEvents.map((item) => <img src={item.poster} alt="" loading="lazy" decoding="async" />)}
+                      </span>
+                    )}
                     <span class="day-number">{dayNumber}</span>
-                    <span class="calendar-mark" aria-hidden="true">{dayEvents.map(() => <i></i>)}</span>
                   </button>
                 </td>
               );
@@ -83,28 +102,27 @@ const initialEvents = grouped.get(initialSelection) ?? [];
     </table>
   </div>
 
-  <div class="calendar-legend" aria-label="Calendar legend">
-    <span class="legend-item"><i class="legend-dot"></i> Scheduled broadcast</span>
-    <span class="legend-item"><i class="legend-dot past"></i> Past date</span>
-  </div>
-
   <section class="date-details" aria-live="polite" aria-atomic="true">
-    <h4 data-selected-label>{formatDate(initialSelection, { weekday: "long", month: "long", day: "numeric" })}</h4>
-    <div class="calendar-events" data-calendar-events>
-      {initialEvents.length ? initialEvents.map((item) => (
-        <article class="calendar-event">
-          <time datetime={item.date}>{item.timeLabel}</time>
-          <p>{item.title}{item.notes && <small>{item.notes}</small>}{item.featureGroup && <small>Double feature</small>}</p>
-        </article>
-      )) : <p class="calendar-empty">No new broadcasts scheduled for this date. Pick another day to explore the season.</p>}
-    </div>
+    <header class="date-details-heading">
+      <h4 data-selected-label>{formatDate(initialSelection, { weekday: "long", month: "long", day: "numeric" })}</h4>
+      <div class="day-heading-badges">
+        <span class="day-counter" data-selected-counter>{formatDayCounter(initialSelection, todayKey)}</span>
+        <span class="double-badge" data-selected-double hidden={initialEvents.length < 2}>Double feature</span>
+      </div>
+    </header>
+    {[...grouped.entries()].map(([date, events]) => (
+      <ul class="event-list calendar-event-list" data-events-for={date} hidden={date !== initialSelection}>
+        {events.map((item) => <EventItem item={item} />)}
+      </ul>
+    ))}
+    <p class="calendar-empty" data-calendar-empty hidden={initialEvents.length > 0}>No new broadcasts scheduled for this date. Pick another day to explore the season.</p>
   </section>
-  <p class="calendar-range-note">The calendar follows the published 2026 schedule. Air times are shown in the original broadcast notation, not converted to your local time.</p>
-  <script type="application/json" data-schedule-json set:html={JSON.stringify(schedule).replace(/</g, "\\u003c")} />
+  <p class="calendar-range-note">The calendar follows the published 2026 schedule.</p>
+  <script type="application/json" data-schedule-json set:html={JSON.stringify(calendarEvents).replace(/</g, "\\u003c")} />
 </section>
 
 <script>
-  type CalendarEvent = { id: string; date: string; title: string; timeLabel: string; notes?: string; featureGroup?: string };
+  type CalendarEvent = { id: string; date: string; title: string; timeLabel: string; notes?: string; featureGroup?: string; poster: string };
   const calendar = document.querySelector<HTMLElement>("[data-calendar]");
   if (calendar) {
     const events = JSON.parse(calendar.querySelector("[data-schedule-json]")?.textContent ?? "[]") as CalendarEvent[];
@@ -128,21 +146,29 @@ const initialEvents = grouped.get(initialSelection) ?? [];
       const isPast = date < today;
       if (selected) button.classList.add("selected");
       if (date === today) button.classList.add("today");
+      if (isPast) button.classList.add("past");
       button.setAttribute("aria-pressed", String(selected));
-      button.setAttribute("aria-label", `${formatDate(date, { weekday: "long", month: "long", day: "numeric" })}, ${dayEvents.length ? `${dayEvents.length} ${dayEvents.length === 1 ? "broadcast" : "broadcasts"}` : "no broadcasts"}, ${isPast ? "aired" : "upcoming"}`);
+      button.setAttribute("aria-label", `${formatDate(date, { weekday: "long", month: "long", day: "numeric" })}, ${dayEvents.length ? dayEvents.map((event) => event.title).join(" and ") : "no broadcasts"}, ${isPast ? "aired" : "upcoming"}`);
       button.dataset.calendarDate = date;
+      if (dayEvents.length) {
+        button.classList.add("has-posters");
+        const posters = document.createElement("span");
+        posters.className = "calendar-posters";
+        posters.setAttribute("aria-hidden", "true");
+        for (const event of dayEvents) {
+          const image = document.createElement("img");
+          image.src = event.poster;
+          image.alt = "";
+          image.loading = "lazy";
+          image.decoding = "async";
+          posters.append(image);
+        }
+        button.append(posters);
+      }
       const number = document.createElement("span");
       number.className = "day-number";
       number.textContent = String(Number(date.slice(-2)));
       button.append(number);
-      const mark = document.createElement("span");
-      mark.className = "calendar-mark";
-      mark.setAttribute("aria-hidden", "true");
-      for (const _event of dayEvents) {
-        const dot = document.createElement("i");
-        mark.append(dot);
-      }
-      button.append(mark);
       return button;
     };
     const renderMonth = () => {
@@ -179,42 +205,30 @@ const initialEvents = grouped.get(initialSelection) ?? [];
       if (next) next.disabled = month >= (calendar.dataset.lastMonth ?? "2026-12");
       renderSelectedDate();
     };
+    const formatDayCounter = (date: string, today: string) => {
+      const [year, month, day] = date.split("-").map(Number);
+      const [todayYear, todayMonth, todayDay] = today.split("-").map(Number);
+      const days = Math.round((Date.UTC(year, month - 1, day) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / 86_400_000);
+      if (days === 0) return "Today";
+      const count = Math.abs(days);
+      const label = `${count} ${count === 1 ? "day" : "days"}`;
+      return days > 0 ? `${label} away` : `${label} ago`;
+    };
     const renderSelectedDate = () => {
       const selected = selectedDateKey();
       const label = calendar.querySelector<HTMLElement>("[data-selected-label]");
-      const list = calendar.querySelector<HTMLElement>("[data-calendar-events]");
-      if (!label || !list || !selected) return;
+      if (!label || !selected) return;
       label.textContent = formatDate(selected, { weekday: "long", month: "long", day: "numeric" });
-      list.replaceChildren();
+      const counter = calendar.querySelector<HTMLElement>("[data-selected-counter]");
+      if (counter) counter.textContent = formatDayCounter(selected, localToday());
       const dayEvents = grouped.get(selected) ?? [];
-      if (!dayEvents.length) {
-        const empty = document.createElement("p");
-        empty.className = "calendar-empty";
-        empty.textContent = "No new broadcasts scheduled for this date. Pick another day to explore the season.";
-        list.append(empty);
-        return;
+      const double = calendar.querySelector<HTMLElement>("[data-selected-double]");
+      if (double) double.hidden = dayEvents.length < 2;
+      for (const list of calendar.querySelectorAll<HTMLElement>("[data-events-for]")) {
+        list.hidden = list.dataset.eventsFor !== selected;
       }
-      for (const event of dayEvents) {
-        const article = document.createElement("article");
-        article.className = "calendar-event";
-        const time = document.createElement("time");
-        time.dateTime = event.date;
-        time.textContent = event.timeLabel;
-        const title = document.createElement("p");
-        title.append(document.createTextNode(event.title));
-        if (event.notes) {
-          const note = document.createElement("small");
-          note.textContent = event.notes;
-          title.append(note);
-        }
-        if (event.featureGroup) {
-          const feature = document.createElement("small");
-          feature.textContent = "Double feature";
-          title.append(feature);
-        }
-        article.append(time, title);
-        list.append(article);
-      }
+      const empty = calendar.querySelector<HTMLElement>("[data-calendar-empty]");
+      if (empty) empty.hidden = dayEvents.length > 0;
     };
 
     calendar.addEventListener("click", (clickEvent) => {

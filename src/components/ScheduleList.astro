@@ -1,7 +1,6 @@
 ---
 import { groupScheduleByDate, schedule } from "../data/schedule";
-import { getScheduleDetails } from "../data/details";
-import { getScheduleListPoster } from "../data/posters";
+import EventItem from "./EventItem.astro";
 
 interface Props {
   mode: "upcoming" | "recent";
@@ -78,29 +77,7 @@ const formatDayCounter = (date: string, referenceDate: string) => {
           </div>
         </header>
         <ul class="event-list">
-          {events.map((item) => {
-            const details = getScheduleDetails(item.id);
-            const poster = getScheduleListPoster(item.title);
-            return (
-              <li class="event-item" data-event-title={item.title}>
-                <!-- <time class="event-time" datetime={item.date}>{item.timeLabel}</time> -->
-                <img class:list={["event-poster", { "event-poster--movie": poster.format === "movie" }]} src={poster.src} alt={poster.alt} loading="lazy" decoding="async" width="112" height={poster.format === "movie" ? 168 : 84} />
-                <div class="event-content">
-                  <p class="event-title">
-                    <a href={details.url} target="_blank" rel="noopener noreferrer">
-                      {item.title}<span class="external-link-icon" aria-hidden="true"> ↗</span>
-                    </a>
-                  </p>
-                  {item.notes && <span class="event-note">{item.notes}</span>}
-                  <div class="event-details">
-                    <p class="event-premiere"><span>Premiere</span> {details.premiereDate}</p>
-                    <p class="event-starring"><span>{details.castLabel}</span> {details.starring}</p>
-                    <p class="event-synopsis">{details.synopsis}</p>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {events.map((item) => <EventItem item={item} />)}
         </ul>
       </section>
     );
