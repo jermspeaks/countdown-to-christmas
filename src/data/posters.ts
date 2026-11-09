@@ -7,8 +7,6 @@ const postersByTitle = new Map(posterManifest.map((poster) => [poster.title, pos
 const moviePostersByTitle = new Map(movieMetadata.map((movie) => [normalizeTitle(movie.title), movie]));
 const placeholderMoviePosterTitles = new Set(
   [
-    "Miles to Christmas",
-    "The Snowflake Effect",
     "An Angel in My Stocking",
     "Snow Globe Town",
     "Noelle Nomads",
