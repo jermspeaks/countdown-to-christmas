@@ -7,22 +7,12 @@ const postersByTitle = new Map(posterManifest.map((poster) => [poster.title, pos
 const moviePostersByTitle = new Map(movieMetadata.map((movie) => [normalizeTitle(movie.title), movie]));
 const placeholderMoviePosterTitles = new Set(
   [
-    "Merry Memories",
-    "A Season of Promises",
-    "Mistletoe and Mimosas",
-    "Our Holiday Playbook",
-    "Return to Santa",
-    "The Most Wonderful Secret",
-    "Eight Nights for Love",
     "Miles to Christmas",
     "The Snowflake Effect",
     "An Angel in My Stocking",
-    "Christmas in Canterbury",
     "Snow Globe Town",
     "Noelle Nomads",
     "Hearts All Aglow",
-    "Barking All the Way",
-    "Save the Date for Christmas",
   ].map(normalizeTitle),
 );
 const placeholderPoster = posterManifest.find((poster) =>

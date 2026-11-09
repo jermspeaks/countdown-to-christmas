@@ -235,6 +235,23 @@ const initialEvents = grouped.get(initialSelection) ?? [];
       renderMonth();
     });
 
+    // The page is statically built, so the server-rendered month/selection reflect the build date.
+    // Recompute them from the visitor's local date so the calendar always opens on today.
+    const syncToToday = () => {
+      const today = localToday();
+      const firstEvent = events[0]?.date;
+      const lastEvent = events[events.length - 1]?.date;
+      let selected = today;
+      if (firstEvent && today < firstEvent) selected = firstEvent;
+      else if (lastEvent && today > lastEvent) selected = lastEvent;
+      const firstMonth = calendar.dataset.firstMonth ?? "2026-10";
+      const lastMonth = calendar.dataset.lastMonth ?? "2026-12";
+      const month = selected.slice(0, 7);
+      calendar.dataset.selectedDate = selected;
+      calendar.dataset.currentMonth = month < firstMonth ? firstMonth : month > lastMonth ? lastMonth : month;
+    };
+
+    syncToToday();
     renderMonth();
   }
 </script>
