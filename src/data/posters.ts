@@ -7,7 +7,6 @@ const postersByTitle = new Map(posterManifest.map((poster) => [poster.title, pos
 const moviePostersByTitle = new Map(movieMetadata.map((movie) => [normalizeTitle(movie.title), movie]));
 const placeholderMoviePosterTitles = new Set(
   [
-    "Noelle Nomads",
   ].map(normalizeTitle),
 );
 const placeholderPoster = posterManifest.find((poster) =>
